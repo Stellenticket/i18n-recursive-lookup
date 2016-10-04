@@ -1,4 +1,4 @@
-I18n Recursive Lookup ![Build status](https://api.travis-ci.org/annkissam/i18n-recursive-lookup.png)
+I18n Recursive Lookup ![Build status](https://api.travis-ci.org/Stellenticket/i18n-recursive-lookup.svg)
 =====================
 
 Provides a backend to the i18n gem to allow a definition to contain embedded references to other definitions by introducing the special embedded marker `${}`.
