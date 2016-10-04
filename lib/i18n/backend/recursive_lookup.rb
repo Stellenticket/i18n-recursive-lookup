@@ -12,7 +12,7 @@ module I18n
       def lookup(*args)
         result = super
 
-        result && transform(result) || cut_key_and_try_again(*args)
+        result ? transform(result) : cut_key_and_try_again(*args)
       end
 
       def transform(entry)
@@ -48,7 +48,7 @@ module I18n
         popped = normalized_key.pop
 
         # look it up
-        up = lookup(locale, normalized_key, scope, *args)
+        up = lookup(locale, normalized_key, [], *args)
 
         # if something is found, return the popped key we originally wanted
         up && up[popped]
