@@ -4,98 +4,55 @@ require 'active_support/core_ext'
 module I18n
   module Backend
     module RecursiveLookup
+      IGNORE_PATTERN = /\$\$\{([\w\.]+)\}/ # matches placeholders like "$${foo.bla}"
+      REPLACEMENT_PATTERN = /\A\$\{([\w\.]+)\}\Z/ # matches placeholders like "${foo.bla}"
+      INTERPOLATION_PATTERN = /\$\{([\w\.]+)\}/ # matches placeholders like "abc ${foo.bla} cde"
 
-      # ${} for embedding, $${} for escaping
-      TOKENIZER                    = /(\$\$\{[^\}]+\}|\$\{[^\}]+\})/
-      INTERPOLATION_SYNTAX_PATTERN = /(\$)?(\$\{([^\}]+)\})/
-
-      protected
-
-      def lookup(locale, key, scope = [], options = {})
+      def lookup(*args)
         result = super
 
-        unless result
-          normalized_key = I18n.normalize_keys(nil, key, scope)
-          return if normalized_key.size < 2
-
-          # simply strip the last key part, e.g.
-          # `foo.bar.baz` becomes `foo.bar`
-          normalized_key.slice!(-1, 1)
-
-          # look the stripped key up - if this is a reference, it will
-          # get compiled and cached
-          lookup(locale, normalized_key, [], options)
-
-          # then try again to get our result - it will be found now if the
-          # previous `lookup` call compiled a new reference with our key,
-          # otherwise still stay nil
-          result = super
-        end
-
-        return result unless (result.is_a?(String) or result.is_a?(Hash))
-
-        compiled_result, had_to_compile_result = deep_compile(locale, result, options)
-
-        if had_to_compile_result
-          cache_compiled_result(locale, key, compiled_result, scope, options)
-        end
-
-        compiled_result
+        result && transform(result) || cut_key_and_try_again(*args)
       end
 
-      #subject is hash or string
-      def deep_compile(locale, subject, options)
-        if subject.is_a?(Hash)
-          subject.each do |key, object|
-            subject[key], _had_to_compile_result = deep_compile(locale, object, options)
-          end
+      def transform(entry)
+        if entry.is_a?(String)
+          replace_reference(entry)
+        elsif entry.is_a?(Hash)
+          replace_hash_references(entry)
         else
-          compile(locale, subject, options)
+          entry
         end
       end
 
-      def compile(locale, string, options)
-        had_to_compile_result = false
-
-        if string.is_a?(String)
-          result = string.split(TOKENIZER).map do |token|
-            embedded_token = token.match(INTERPOLATION_SYNTAX_PATTERN)
-
-            if embedded_token
-              had_to_compile_result = true
-              handle_interpolation_match(locale, embedded_token, options)
-            else
-              token
-            end
-          end
-
-          result = (
-            result.second && (
-              result.second.is_a?(Array) || result.second.is_a?(Hash)
-            )
-          ) ? result.second : result.join
+      def replace_reference(entry)
+        if entry =~ IGNORE_PATTERN
+          entry
+        elsif entry =~ REPLACEMENT_PATTERN
+          I18n.t(Regexp.last_match(1))
         else
-          result = string
+          entry.gsub(INTERPOLATION_PATTERN) do
+            key = Regexp.last_match(1)
+            I18n.t(key)
+          end
         end
-
-        [result, had_to_compile_result]
       end
 
-      def cache_compiled_result(locale, dot_form_key, compiled_result, scope, options)
-        keys = I18n.normalize_keys(locale, dot_form_key, scope, options[:separator])
-
-        translation_hash = {}
-        # ignore prepended locale key
-        keys[1..-1].inject(translation_hash) do |hash, key|
-          key == keys[-1] ? hash[key] = compiled_result : hash[key] = {}
-        end
-
-        store_translations(locale, translation_hash, options)
+      def replace_hash_references(hash)
+        hash.transform_values { |entry| transform(entry) }
       end
 
-      def handle_interpolation_match(locale, embedded_token, options)
-        escaped, pattern, key = embedded_token.values_at(1, 2, 3)
-        escaped ? pattern : I18n.translate(key, locale: locale)
+      def cut_key_and_try_again(locale, key, scope, *args)
+        normalized_key = I18n.normalize_keys(nil, key, scope)
+        return if normalized_key.size < 2
+
+        # simply strip the last key part, e.g. `foo.bar.baz` becomes `foo.bar`
+        popped = normalized_key.pop
+
+        # look it up
+        up = lookup(locale, normalized_key, scope, *args)
+
+        # if something is found, return the popped key we originally wanted
+        up && up[popped]
       end
     end
   end

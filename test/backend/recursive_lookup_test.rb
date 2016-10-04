@@ -15,6 +15,7 @@ class I18nBackendRecursiveLookupTest < Test::Unit::TestCase
           :baz => 'hoo ${bar.baz}'
         }
       },
+      :no_replacement => 'no replacement: $${foo}',
       :alternate_lookup => '${baz}',
       :hash_lookup => '${hash}',
       :hash => {
@@ -52,13 +53,17 @@ class I18nBackendRecursiveLookupTest < Test::Unit::TestCase
     assert_equal 'hoo bar foo', I18n.t(:'bar.boo.baz')
   end
 
-  test "stores a compiled lookup" do
-    original_lookup = I18n::Backend::Simple.instance_method(:lookup).bind(I18n.backend)
-
-    result = I18n.t(:'bar.baz')
-    precompiled_result = original_lookup.call(:en, :'bar.baz')
-    assert_equal result, precompiled_result
+  test "does not transform $${...}" do
+    assert_equal 'no replacement: $${foo}', I18n.t(:'no_replacement')
   end
+
+  # test "stores a compiled lookup" do
+  #   original_lookup = I18n::Backend::Simple.instance_method(:lookup).bind(I18n.backend)
+  #
+  #   result = I18n.t(:'bar.baz')
+  #   precompiled_result = original_lookup.call(:en, :'bar.baz')
+  #   assert_equal result, precompiled_result
+  # end
 
   test "resolves hash lookups" do
     assert_equal I18n.t(:'bar.boo').to_s, '{:baz=>"hoo bar foo"}'
@@ -68,13 +73,13 @@ class I18nBackendRecursiveLookupTest < Test::Unit::TestCase
     assert_equal '{:delimiter=>",", :precision=>3, :significant=>false}', I18n.t(:'number_hash.format', :locale => :en, :default => {}).to_s
   end
 
-  test "stores a compiled hash lookup" do
-    original_lookup = I18n::Backend::Simple.instance_method(:lookup).bind(I18n.backend)
-
-    result = I18n.t(:'bar.boo')
-    precompiled_result = original_lookup.call(:en, :'bar.boo')
-    assert_equal result, precompiled_result
-  end
+  # test "stores a compiled hash lookup" do
+  #   original_lookup = I18n::Backend::Simple.instance_method(:lookup).bind(I18n.backend)
+  #
+  #   result = I18n.t(:'bar.boo')
+  #   precompiled_result = original_lookup.call(:en, :'bar.boo')
+  #   assert_equal result, precompiled_result
+  # end
 
   test "correctly returns a hash" do
     result = I18n.t(:'hash_lookup')
