@@ -18,7 +18,7 @@ module I18n
         if entry.is_a?(String)
           replace_reference(entry)
         elsif entry.is_a?(Hash)
-          replace_hash_references(entry)
+          entry.transform_values! { |e| transform(e) }
         else
           entry
         end
@@ -35,10 +35,6 @@ module I18n
             I18n.t(key)
           end
         end
-      end
-
-      def replace_hash_references(hash)
-        hash.transform_values { |entry| transform(entry) }
       end
 
       def cut_key_and_try_again(locale, key, scope, *args)
