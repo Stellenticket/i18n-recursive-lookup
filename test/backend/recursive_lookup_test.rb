@@ -55,7 +55,7 @@ class I18nBackendRecursiveLookupTest < Test::Unit::TestCase
   end
 
   test 'does not transform $${...}' do
-    assert_equal 'no replacement: $${foo}', I18n.t(:no_replacement)
+    assert_equal 'no replacement: ${foo}', I18n.t(:no_replacement)
   end
 
   # test "stores a compiled lookup" do

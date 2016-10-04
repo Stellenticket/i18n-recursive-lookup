@@ -4,9 +4,10 @@ require 'active_support/core_ext'
 module I18n
   module Backend
     module RecursiveLookup
-      IGNORE_PATTERN = /\$\$\{([\w\.]+)\}/ # matches placeholders like "$${foo.bla}"
-      REPLACEMENT_PATTERN = /\A\$\{([\w\.]+)\}\Z/ # matches placeholders like "${foo.bla}"
-      INTERPOLATION_PATTERN = /\$\{([\w\.]+)\}/ # matches placeholders like "abc ${foo.bla} cde"
+      REPLACEMENT_PATTERN =
+        /\A\$\{([\w\.]+)\}\Z/ # "${foo.bla}" (nothing more on line)
+      INTERPOLATION_PATTERN =
+        /(\$?\$)\{([\w\.]+)\}/ # "abc ${foo.bla} cde" and "abc $${some.thing} cde"
 
       def lookup(*args)
         result = super
@@ -25,14 +26,16 @@ module I18n
       end
 
       def replace_reference(entry)
-        if entry =~ IGNORE_PATTERN
-          entry
-        elsif entry =~ REPLACEMENT_PATTERN
+        if entry =~ REPLACEMENT_PATTERN
           I18n.t(Regexp.last_match(1))
         else
           entry.gsub(INTERPOLATION_PATTERN) do
-            key = Regexp.last_match(1)
-            I18n.t(key)
+            key = Regexp.last_match(2)
+            if Regexp.last_match(1) == '$$'
+              "${#{key}}"
+            else
+              I18n.t(key)
+            end
           end
         end
       end
